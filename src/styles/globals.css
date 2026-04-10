@@ -1,0 +1,354 @@
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Share+Tech+Mono&family=Rajdhani:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================
+   CSS VARIABLES - MINECRAFT THEME
+   ============================ */
+:root {
+  --font-minecraft: 'Press Start 2P', monospace;
+  --font-body: 'Rajdhani', sans-serif;
+  --font-mono: 'Share Tech Mono', monospace;
+
+  /* Colors */
+  --mc-grass: #5D9E2F;
+  --mc-grass-dark: #4A7A24;
+  --mc-dirt: #6B4226;
+  --mc-stone: #8B8B8B;
+  --mc-diamond: #4EEBD0;
+  --mc-gold: #FFD700;
+  --mc-redstone: #FF3333;
+  --mc-emerald: #00FF5A;
+  --mc-obsidian: #0F0F1A;
+  --mc-dark-bg: #0D0D14;
+  --mc-card-bg: #141420;
+  --mc-card-border: #2A2A3E;
+
+  /* Pixel sizes */
+  --px: 2px;
+  --px2: 4px;
+  --px4: 8px;
+}
+
+/* ============================
+   BASE STYLES
+   ============================ */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: var(--mc-dark-bg);
+  color: #E8E8F0;
+  overflow-x: hidden;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #0D0D14;
+}
+::-webkit-scrollbar-thumb {
+  background: #2A2A3E;
+  border-radius: 0; /* Pixelated */
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #4EEBD0;
+}
+
+/* Text selection */
+::selection {
+  background: rgba(78, 235, 208, 0.3);
+  color: #fff;
+}
+
+/* ============================
+   MINECRAFT BUTTON STYLES
+   ============================ */
+@layer components {
+  .mc-btn {
+    @apply relative font-body font-semibold tracking-wider uppercase text-sm px-6 py-3 
+           transition-all duration-100 cursor-pointer select-none
+           border-2 border-mc-grass-dark bg-mc-grass text-white;
+    text-shadow: 1px 1px 0px rgba(0,0,0,0.5);
+    box-shadow: 0 4px 0 #3A6A1A, inset 0 1px 0 rgba(255,255,255,0.2), inset 0 -1px 0 rgba(0,0,0,0.2);
+    image-rendering: pixelated;
+  }
+  .mc-btn:hover {
+    @apply bg-mc-grass;
+    filter: brightness(1.15);
+    box-shadow: 0 4px 0 #3A6A1A, inset 0 1px 0 rgba(255,255,255,0.3), 0 0 15px rgba(93,158,47,0.4);
+    transform: translateY(-1px);
+  }
+  .mc-btn:active {
+    box-shadow: 0 0px 0 #3A6A1A, inset 0 2px 4px rgba(0,0,0,0.3);
+    transform: translateY(4px);
+  }
+
+  .mc-btn-diamond {
+    @apply relative font-body font-semibold tracking-wider uppercase text-sm px-6 py-3
+           transition-all duration-100 cursor-pointer select-none
+           border-2 text-mc-obsidian;
+    background: var(--mc-diamond);
+    border-color: #2BBFA6;
+    color: #0D0D14;
+    text-shadow: none;
+    box-shadow: 0 4px 0 #1A8A76, inset 0 1px 0 rgba(255,255,255,0.4);
+  }
+  .mc-btn-diamond:hover {
+    filter: brightness(1.1);
+    box-shadow: 0 4px 0 #1A8A76, inset 0 1px 0 rgba(255,255,255,0.4), 0 0 20px rgba(78,235,208,0.5);
+    transform: translateY(-1px);
+  }
+  .mc-btn-diamond:active {
+    box-shadow: 0 0px 0 #1A8A76, inset 0 2px 4px rgba(0,0,0,0.2);
+    transform: translateY(4px);
+  }
+
+  .mc-btn-outline {
+    @apply relative font-body font-semibold tracking-wider uppercase text-sm px-6 py-3
+           transition-all duration-200 cursor-pointer select-none
+           border-2 border-mc-card-border bg-transparent text-gray-300;
+  }
+  .mc-btn-outline:hover {
+    @apply border-mc-diamond text-mc-diamond;
+    box-shadow: 0 0 15px rgba(78,235,208,0.2);
+  }
+
+  /* MC Card */
+  .mc-card {
+    @apply relative border border-mc-card-border;
+    background: var(--mc-card-bg);
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.03), 0 8px 32px rgba(0,0,0,0.5);
+  }
+  .mc-card::before {
+    content: '';
+    @apply absolute inset-0 opacity-5 pointer-events-none;
+    background-image: 
+      repeating-linear-gradient(0deg, transparent, transparent 7px, rgba(255,255,255,0.03) 7px, rgba(255,255,255,0.03) 8px),
+      repeating-linear-gradient(90deg, transparent, transparent 7px, rgba(255,255,255,0.03) 7px, rgba(255,255,255,0.03) 8px);
+  }
+
+  /* MC Input */
+  .mc-input {
+    @apply w-full bg-mc-obsidian border border-mc-card-border text-white px-4 py-3
+           font-body focus:outline-none transition-all duration-200;
+    border-radius: 0;
+  }
+  .mc-input:focus {
+    border-color: var(--mc-diamond);
+    box-shadow: 0 0 0 2px rgba(78,235,208,0.15), inset 0 2px 4px rgba(0,0,0,0.3);
+  }
+  .mc-input::placeholder {
+    color: rgba(255,255,255,0.3);
+  }
+
+  /* MC Badge */
+  .mc-badge {
+    @apply inline-flex items-center gap-1 px-2 py-1 text-xs font-mono border;
+    border-radius: 0;
+  }
+
+  /* Pixel Divider */
+  .pixel-divider {
+    height: 4px;
+    background: repeating-linear-gradient(90deg, var(--mc-grass) 0px, var(--mc-grass) 8px, var(--mc-grass-dark) 8px, var(--mc-grass-dark) 16px);
+  }
+
+  /* Minecraft Heading */
+  .mc-heading {
+    font-family: var(--font-minecraft);
+    line-height: 1.6;
+    letter-spacing: 0.05em;
+  }
+
+  /* Stat Block */
+  .mc-stat-block {
+    @apply mc-card p-4 flex flex-col gap-2;
+  }
+
+  /* Console */
+  .mc-console {
+    @apply bg-black border border-mc-card-border font-mono text-xs p-4 overflow-y-auto;
+    background: #050508;
+  }
+  .mc-console-line {
+    @apply leading-relaxed;
+  }
+  .mc-console-line.info { color: #4EEBD0; }
+  .mc-console-line.warn { color: #FFD700; }
+  .mc-console-line.error { color: #FF3333; }
+  .mc-console-line.success { color: #00FF5A; }
+  .mc-console-line.default { color: #AAAAAA; }
+
+  /* Tooltip */
+  .mc-tooltip {
+    @apply absolute z-50 px-3 py-2 text-xs font-mono border border-mc-card-border pointer-events-none;
+    background: #0D0D14;
+    box-shadow: 4px 4px 0 rgba(0,0,0,0.5);
+  }
+
+  /* Progress Bar */
+  .mc-progress {
+    @apply w-full h-4 border border-mc-card-border overflow-hidden;
+    background: #050508;
+    border-radius: 0;
+  }
+  .mc-progress-bar {
+    @apply h-full transition-all duration-500;
+    background: repeating-linear-gradient(90deg, #4EEBD0 0px, #4EEBD0 6px, #2BBFA6 6px, #2BBFA6 8px);
+  }
+  .mc-progress-bar.warning {
+    background: repeating-linear-gradient(90deg, #FFD700 0px, #FFD700 6px, #C8A800 6px, #C8A800 8px);
+  }
+  .mc-progress-bar.danger {
+    background: repeating-linear-gradient(90deg, #FF3333 0px, #FF3333 6px, #CC0000 6px, #CC0000 8px);
+  }
+
+  /* Nav link */
+  .nav-link {
+    @apply relative text-sm font-body font-medium tracking-wider uppercase text-gray-400
+           transition-all duration-200 hover:text-white;
+  }
+  .nav-link::after {
+    content: '';
+    @apply absolute bottom-0 left-0 w-0 h-0.5 bg-mc-diamond transition-all duration-300;
+  }
+  .nav-link:hover::after,
+  .nav-link.active::after {
+    @apply w-full;
+  }
+  .nav-link.active {
+    @apply text-mc-diamond;
+  }
+
+  /* Loading overlay */
+  .loading-overlay {
+    @apply fixed inset-0 z-50 flex items-center justify-center flex-col gap-4;
+    background: #0D0D14;
+  }
+
+  /* Sidebar item */
+  .sidebar-item {
+    @apply flex items-center gap-3 px-4 py-3 text-sm font-body font-medium
+           text-gray-400 transition-all duration-200 cursor-pointer border-l-2 border-transparent;
+  }
+  .sidebar-item:hover {
+    @apply text-white bg-mc-hover-bg border-l-mc-stone;
+  }
+  .sidebar-item.active {
+    @apply text-mc-diamond bg-mc-hover-bg border-l-mc-diamond;
+  }
+
+  /* Status indicators */
+  .status-online {
+    @apply inline-flex items-center gap-1.5 text-mc-emerald text-xs font-mono;
+  }
+  .status-online::before {
+    content: '';
+    @apply w-2 h-2 bg-mc-emerald rounded-full;
+    animation: pulseGlow 2s ease-in-out infinite;
+    box-shadow: 0 0 6px var(--mc-emerald);
+  }
+  .status-offline {
+    @apply inline-flex items-center gap-1.5 text-red-400 text-xs font-mono;
+  }
+  .status-offline::before {
+    content: '';
+    @apply w-2 h-2 bg-red-500 rounded-full;
+  }
+  .status-starting {
+    @apply inline-flex items-center gap-1.5 text-yellow-400 text-xs font-mono;
+  }
+  .status-starting::before {
+    content: '';
+    @apply w-2 h-2 bg-yellow-400 rounded-full animate-pulse;
+  }
+}
+
+/* ============================
+   ANIMATIONS
+   ============================ */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+}
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 5px currentColor; opacity: 1; }
+  50% { box-shadow: 0 0 15px currentColor, 0 0 30px currentColor; opacity: 0.8; }
+}
+@keyframes scan {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100vh); }
+}
+@keyframes flicker {
+  0%, 92%, 94%, 96%, 100% { opacity: 1; }
+  93% { opacity: 0.7; }
+  95% { opacity: 0.9; }
+}
+@keyframes grassWave {
+  0%, 100% { transform: scaleX(1); }
+  50% { transform: scaleX(1.02); }
+}
+@keyframes pixelReveal {
+  0% { clip-path: inset(0 100% 0 0); }
+  100% { clip-path: inset(0 0% 0 0); }
+}
+@keyframes spinBlock {
+  0% { transform: rotate(0deg) scale(1); }
+  25% { transform: rotate(90deg) scale(0.9); }
+  50% { transform: rotate(180deg) scale(1); }
+  75% { transform: rotate(270deg) scale(0.9); }
+  100% { transform: rotate(360deg) scale(1); }
+}
+
+/* Pixelated image rendering */
+.pixel-art {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+/* Noise overlay */
+.noise-overlay::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.05'/%3E%3C/svg%3E");
+  opacity: 0.03;
+  pointer-events: none;
+}
+
+/* Grid background */
+.grid-bg {
+  background-image: 
+    linear-gradient(rgba(78,235,208,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(78,235,208,0.03) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* Glow text effects */
+.text-glow-diamond {
+  text-shadow: 0 0 10px rgba(78,235,208,0.7), 0 0 20px rgba(78,235,208,0.4), 0 0 40px rgba(78,235,208,0.2);
+}
+.text-glow-gold {
+  text-shadow: 0 0 10px rgba(255,215,0,0.7), 0 0 20px rgba(255,215,0,0.4);
+}
+.text-glow-emerald {
+  text-shadow: 0 0 10px rgba(0,255,90,0.7), 0 0 20px rgba(0,255,90,0.4);
+}
+.text-glow-redstone {
+  text-shadow: 0 0 10px rgba(255,51,51,0.7), 0 0 20px rgba(255,51,51,0.4);
+}
