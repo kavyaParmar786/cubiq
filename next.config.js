@@ -3,10 +3,8 @@ const nextConfig = {
   images: {
     domains: ['localhost'],
   },
-  env: {
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000',
-    NEXT_PUBLIC_SOCKET_URL: process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5000',
-  },
+  // All env vars are now managed via Supabase + .env.local
+  // No separate backend needed — API routes handle everything
 }
 
 module.exports = nextConfig

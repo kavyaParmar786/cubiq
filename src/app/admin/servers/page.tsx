@@ -1,163 +1,149 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import DashboardHeader from '@/components/layout/DashboardHeader'
-import { Search, PauseCircle, Trash2, Eye, RefreshCw, Filter } from 'lucide-react'
+import { Search, PauseCircle, Trash2, Terminal, RefreshCw, PlayCircle } from 'lucide-react'
+import { createClient } from '@/lib/supabase'
+import { useAdminGuard } from '@/lib/useAdmin'
 
-const mockServers = [
-  { id: 's1', name: 'SurvivalSMP', owner: 'Steve_Miner', type: 'Paper 1.20.4', node: 'Mumbai IN', status: 'online', players: '12/20', ram: '2.1GB', cpu: '34%', plan: 'DIAMOND' },
-  { id: 's2', name: 'SkyblockNetwork', owner: 'AlexBuilder', type: 'Paper 1.20.4', node: 'US East', status: 'online', players: '43/100', ram: '6.8GB', cpu: '71%', plan: 'NETHERITE' },
-  { id: 's3', name: 'CreativePlot', owner: 'Steve_Miner', type: 'Paper 1.20.4', node: 'Mumbai IN', status: 'online', players: '3/10', ram: '0.8GB', cpu: '12%', plan: 'IRON' },
-  { id: 's4', name: 'RPGWorld', owner: 'PixelQueen', type: 'Forge 1.20.1', node: 'EU West', status: 'offline', players: '0/30', ram: '0GB', cpu: '0%', plan: 'DIAMOND' },
-  { id: 's5', name: 'TestBot', owner: 'DevBot_Riya', type: 'Node.js Bot', node: 'Mumbai IN', status: 'online', players: '—', ram: '128MB', cpu: '2%', plan: 'BOT PRO' },
-  { id: 's6', name: 'BungeeProxy', owner: 'NetworkDev', type: 'BungeeCord', node: 'US East', status: 'suspended', players: '0/—', ram: '0GB', cpu: '0%', plan: 'NETHERITE' },
-]
-
-const statusStyles: Record<string, string> = {
-  online: 'text-mc-emerald',
-  offline: 'text-gray-500',
-  suspended: 'text-mc-redstone',
-  starting: 'text-mc-gold',
+const STATUS_COLORS: Record<string, string> = {
+  online: 'text-mc-emerald border-green-800', offline: 'text-gray-500 border-gray-700',
+  suspended: 'text-mc-gold border-yellow-800', installing: 'text-mc-diamond border-teal-800',
+  starting: 'text-mc-diamond border-teal-800', stopping: 'text-mc-gold border-yellow-800',
 }
 
 export default function AdminServersPage() {
-  const [servers, setServers] = useState(mockServers)
+  const { isAdmin, loading: authLoading } = useAdminGuard()
+  const [servers, setServers] = useState<any[]>([])
   const [search, setSearch] = useState('')
-  const [nodeFilter, setNodeFilter] = useState('all')
-  const [confirmAction, setConfirmAction] = useState<{ serverId: string; action: string } | null>(null)
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [loading, setLoading] = useState(true)
+  const [actionId, setActionId] = useState<string | null>(null)
+  const [toast, setToast] = useState<string>('')
+  const supabase = createClient()
 
-  const nodes = ['all', ...Array.from(new Set(mockServers.map(s => s.node)))]
+  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000) }
+
+  const loadServers = useCallback(async () => {
+    setLoading(true)
+    let q = supabase.from('servers').select('*, profiles(username, email), plans(name, display_name), nodes(name, location_city)').neq('status', 'deleted').order('created_at', { ascending: false })
+    if (statusFilter !== 'all') q = q.eq('status', statusFilter)
+    const { data } = await q
+    setServers(data || [])
+    setLoading(false)
+  }, [statusFilter])
+
+  useEffect(() => { if (isAdmin) loadServers() }, [isAdmin, loadServers])
+
+  const suspendServer = async (id: string, currentStatus: string) => {
+    setActionId(id)
+    const newStatus = currentStatus === 'suspended' ? 'offline' : 'suspended'
+    const res = await fetch(`/api/servers/${id}/power`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: newStatus === 'suspended' ? 'stop' : 'start' }),
+    })
+
+    await supabase.from('servers').update({ status: newStatus, suspend_reason: newStatus === 'suspended' ? 'Suspended by admin' : null }).eq('id', id)
+    setServers(prev => prev.map(s => s.id === id ? { ...s, status: newStatus } : s))
+    showToast(newStatus === 'suspended' ? 'Server suspended.' : 'Server unsuspended.')
+    setActionId(null)
+  }
+
+  const deleteServer = async (id: string) => {
+    if (!confirm('Delete this server? This will remove it from Pterodactyl.')) return
+    setActionId(id)
+    await fetch(`/api/servers/${id}`, { method: 'DELETE' })
+    setServers(prev => prev.filter(s => s.id !== id))
+    showToast('Server deleted.')
+    setActionId(null)
+  }
+
+  if (authLoading || !isAdmin) return null
 
   const filtered = servers.filter(s => {
-    const matchSearch = s.name.toLowerCase().includes(search.toLowerCase()) || s.owner.toLowerCase().includes(search.toLowerCase())
-    const matchNode = nodeFilter === 'all' || s.node === nodeFilter
-    return matchSearch && matchNode
+    const srch = search.toLowerCase()
+    return (!srch || s.name?.toLowerCase().includes(srch) || s.profiles?.username?.toLowerCase().includes(srch)) &&
+      (statusFilter === 'all' || s.status === statusFilter)
   })
-
-  const handleAction = (serverId: string, action: string) => {
-    if (action === 'suspend') {
-      setServers(prev => prev.map(s => s.id === serverId
-        ? { ...s, status: s.status === 'suspended' ? 'offline' : 'suspended' }
-        : s
-      ))
-    } else if (action === 'delete') {
-      setServers(prev => prev.filter(s => s.id !== serverId))
-    } else if (action === 'restart') {
-      setServers(prev => prev.map(s => s.id === serverId ? { ...s, status: 'online' } : s))
-    }
-    setConfirmAction(null)
-  }
 
   return (
     <div className="flex flex-col flex-1 overflow-y-auto">
       <DashboardHeader title="Server Control" />
+      {toast && <div className="fixed top-4 right-4 z-50 px-4 py-3 text-sm font-body border border-mc-grass/40 bg-mc-grass/10 text-mc-grass">{toast}</div>}
       <div className="p-6">
-
-        {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-3 mb-6">
           <div className="relative flex-1">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
-            <input
-              type="text"
-              placeholder="Search servers or owners..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="mc-input pl-9 pr-4 py-2.5 text-sm"
-            />
+            <input type="text" placeholder="Search servers or owners..." value={search}
+              onChange={e => setSearch(e.target.value)} className="mc-input pl-9 w-full" />
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <Filter size={14} className="text-gray-500" />
-            {nodes.map(n => (
-              <button
-                key={n}
-                onClick={() => setNodeFilter(n)}
-                className={`px-3 py-2 text-xs font-mono uppercase border transition-all ${
-                  nodeFilter === n ? 'border-mc-diamond text-mc-diamond bg-mc-diamond/5' : 'border-mc-card-border text-gray-500 hover:text-white'
-                }`}
-              >
-                {n}
+          <div className="flex gap-2 flex-wrap">
+            {['all', 'online', 'offline', 'suspended', 'installing'].map(f => (
+              <button key={f} onClick={() => setStatusFilter(f)}
+                className={`px-4 py-2 text-xs font-mono uppercase border transition-all ${statusFilter === f ? 'border-mc-diamond text-mc-diamond bg-mc-diamond/5' : 'border-mc-card-border text-gray-500 hover:text-white'}`}>
+                {f}
               </button>
             ))}
+            <button onClick={loadServers} className="px-3 py-2 border border-mc-card-border text-gray-500 hover:text-white transition-all">
+              <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+            </button>
           </div>
         </div>
 
-        {/* Mini stats */}
-        <div className="grid grid-cols-4 gap-3 mb-6">
+        <div className="grid grid-cols-3 gap-3 mb-6">
           {[
-            { label: 'Total', value: servers.length },
-            { label: 'Online', value: servers.filter(s => s.status === 'online').length },
-            { label: 'Offline', value: servers.filter(s => s.status === 'offline').length },
-            { label: 'Suspended', value: servers.filter(s => s.status === 'suspended').length },
-          ].map(({ label, value }) => (
+            { label: 'Total', value: servers.length, color: 'text-white' },
+            { label: 'Online', value: servers.filter(s => s.status === 'online').length, color: 'text-mc-emerald' },
+            { label: 'Suspended', value: servers.filter(s => s.status === 'suspended').length, color: 'text-mc-gold' },
+          ].map(({ label, value, color }) => (
             <div key={label} className="mc-card p-3 text-center">
-              <div className="text-white font-bold font-body text-xl">{value}</div>
-              <div className="text-gray-500 text-xs font-mono uppercase mt-1">{label}</div>
+              <div className={`text-xl font-body font-bold ${color}`}>{value}</div>
+              <div className="text-gray-500 text-xs font-mono">{label}</div>
             </div>
           ))}
         </div>
 
-        {/* Table */}
-        <div className="mc-card border border-mc-card-border overflow-x-auto">
-          <table className="w-full text-sm min-w-[800px]">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mc-card border border-mc-card-border overflow-x-auto">
+          <table className="w-full text-sm font-body min-w-[700px]">
             <thead>
-              <tr className="border-b border-mc-card-border">
-                {['Server', 'Owner', 'Type', 'Node', 'Status', 'Resources', 'Plan', 'Actions'].map(h => (
-                  <th key={h} className="px-4 py-3 text-left text-xs font-mono uppercase tracking-wider text-gray-500">{h}</th>
+              <tr className="border-b border-mc-card-border text-left">
+                {['Server', 'Owner', 'Type', 'Node', 'Plan', 'Status', 'Actions'].map(h => (
+                  <th key={h} className="px-4 py-3 text-xs font-mono text-gray-500 uppercase tracking-wider">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-mc-card-border">
-              {filtered.map((srv, i) => (
-                <motion.tr
-                  key={srv.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.04 }}
-                  className="hover:bg-mc-hover-bg transition-colors"
-                >
+              {loading ? (
+                <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-600 font-mono text-sm">Loading...</td></tr>
+              ) : filtered.length === 0 ? (
+                <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-600 font-mono text-sm">No servers found.</td></tr>
+              ) : filtered.map((srv, i) => (
+                <motion.tr key={srv.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.03 }}
+                  className="hover:bg-mc-hover-bg transition-colors">
                   <td className="px-4 py-3">
-                    <span className="text-white font-body font-medium">{srv.name}</span>
+                    <span className="text-white font-medium">{srv.name}</span>
+                    <div className="text-gray-600 text-xs font-mono">{srv.id.slice(0, 8)}</div>
                   </td>
-                  <td className="px-4 py-3 text-gray-400 text-xs font-mono">{srv.owner}</td>
-                  <td className="px-4 py-3 text-gray-500 text-xs font-mono">{srv.type}</td>
-                  <td className="px-4 py-3 text-gray-400 text-xs font-mono">📍 {srv.node}</td>
+                  <td className="px-4 py-3 text-mc-diamond text-xs font-mono">{srv.profiles?.username || '—'}</td>
+                  <td className="px-4 py-3 text-gray-400 text-xs font-mono">{srv.type} {srv.version}</td>
+                  <td className="px-4 py-3 text-gray-400 text-xs font-mono">{srv.nodes?.name || '—'}</td>
                   <td className="px-4 py-3">
-                    <span className={`text-xs font-mono uppercase flex items-center gap-1.5 ${statusStyles[srv.status]}`}>
-                      <span className={`w-1.5 h-1.5 rounded-full bg-current ${srv.status === 'online' ? 'animate-pulse' : ''}`} />
-                      {srv.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-gray-500 text-xs font-mono">
-                    {srv.ram} · {srv.cpu}
+                    <span className="mc-badge text-mc-diamond border-teal-800 text-xs">{srv.plans?.display_name || '—'}</span>
                   </td>
                   <td className="px-4 py-3">
-                    <span className="mc-badge text-mc-diamond border-teal-800 text-xs">{srv.plan}</span>
+                    <span className={`mc-badge text-xs ${STATUS_COLORS[srv.status] || STATUS_COLORS.offline}`}>{srv.status}</span>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-1">
-                      <button title="View" className="p-1.5 text-gray-500 hover:text-mc-diamond transition-colors">
-                        <Eye size={13} />
+                    <div className="flex gap-1">
+                      <button onClick={() => suspendServer(srv.id, srv.status)} disabled={actionId === srv.id}
+                        className={`p-1.5 transition-colors ${srv.status === 'suspended' ? 'text-mc-grass hover:text-mc-grass/80' : 'text-mc-gold hover:text-mc-gold/80'}`}
+                        title={srv.status === 'suspended' ? 'Unsuspend' : 'Suspend'}>
+                        {actionId === srv.id ? <RefreshCw size={13} className="animate-spin" /> : srv.status === 'suspended' ? <PlayCircle size={13} /> : <PauseCircle size={13} />}
                       </button>
-                      <button
-                        title="Restart"
-                        onClick={() => handleAction(srv.id, 'restart')}
-                        className="p-1.5 text-gray-500 hover:text-mc-gold transition-colors"
-                      >
-                        <RefreshCw size={13} />
-                      </button>
-                      <button
-                        title={srv.status === 'suspended' ? 'Unsuspend' : 'Suspend'}
-                        onClick={() => setConfirmAction({ serverId: srv.id, action: 'suspend' })}
-                        className="p-1.5 text-gray-500 hover:text-mc-gold transition-colors"
-                      >
-                        <PauseCircle size={13} />
-                      </button>
-                      <button
-                        title="Delete"
-                        onClick={() => setConfirmAction({ serverId: srv.id, action: 'delete' })}
-                        className="p-1.5 text-gray-500 hover:text-mc-redstone transition-colors"
-                      >
+                      <button onClick={() => deleteServer(srv.id)} disabled={actionId === srv.id}
+                        className="p-1.5 text-gray-500 hover:text-mc-redstone transition-colors" title="Delete">
                         <Trash2 size={13} />
                       </button>
                     </div>
@@ -166,38 +152,7 @@ export default function AdminServersPage() {
               ))}
             </tbody>
           </table>
-        </div>
-
-        {/* Confirm modal */}
-        {confirmAction && (
-          <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center px-4">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="mc-card p-8 max-w-sm w-full border border-mc-redstone/30"
-            >
-              <h3 className="text-white font-body font-bold text-base mb-2">Confirm Server Action</h3>
-              <p className="text-gray-400 text-sm font-body mb-6">
-                Are you sure you want to{' '}
-                <span className="text-mc-redstone font-semibold">{confirmAction.action}</span> this server?
-              </p>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => handleAction(confirmAction.serverId, confirmAction.action)}
-                  className="flex-1 py-2.5 bg-mc-redstone border border-red-700 text-white text-sm font-body uppercase tracking-wider hover:brightness-110"
-                >
-                  Confirm
-                </button>
-                <button
-                  onClick={() => setConfirmAction(null)}
-                  className="flex-1 py-2.5 border border-mc-card-border text-gray-400 text-sm hover:text-white transition-colors"
-                >
-                  Cancel
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
+        </motion.div>
       </div>
     </div>
   )

@@ -1,81 +1,112 @@
 'use client'
 
+// MODIFIED: Now uses Supabase Auth instead of mock JWT
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
-import { authApi, setToken, clearToken } from '@/lib/api'
-
-interface User {
-  id: string
-  username: string
-  email: string
-  role: 'user' | 'admin'
-  status: string
-}
+import { createClient, type Profile } from '@/lib/supabase'
+import type { Session } from '@supabase/supabase-js'
 
 interface AuthContextType {
-  user: User | null
+  user: Profile | null
+  session: Session | null
   loading: boolean
   login: (email: string, password: string) => Promise<void>
   register: (username: string, email: string, password: string) => Promise<void>
-  logout: () => void
+  logout: () => Promise<void>
   isAdmin: boolean
+  refreshProfile: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
+  const [user, setUser] = useState<Profile | null>(null)
+  const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
+  const supabase = createClient()
 
-  // Load user on mount
+  const fetchProfile = async (userId: string) => {
+    const { data } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single()
+    return data as Profile | null
+  }
+
+  const refreshProfile = async () => {
+    if (!session?.user) return
+    const profile = await fetchProfile(session.user.id)
+    if (profile) setUser(profile)
+  }
+
   useEffect(() => {
-    const stored = localStorage.getItem('cubiq_user')
-    if (stored) {
-      try {
-        setUser(JSON.parse(stored))
-      } catch {}
-    }
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      setSession(session)
+      if (session?.user) {
+        const profile = await fetchProfile(session.user.id)
+        setUser(profile)
+      }
+      setLoading(false)
+    })
 
-    // Verify token is still valid
-    authApi.me()
-      .then(data => {
-        setUser(data.user)
-        localStorage.setItem('cubiq_user', JSON.stringify(data.user))
-      })
-      .catch(() => {
-        clearToken()
-        setUser(null)
-      })
-      .finally(() => setLoading(false))
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        setSession(session)
+        if (session?.user) {
+          const profile = await fetchProfile(session.user.id)
+          setUser(profile)
+        } else {
+          setUser(null)
+        }
+        setLoading(false)
+      }
+    )
+    return () => subscription.unsubscribe()
   }, [])
 
   const login = async (email: string, password: string) => {
-    const data = await authApi.login({ email, password })
-    setToken(data.token)
-    setUser(data.user)
-    localStorage.setItem('cubiq_user', JSON.stringify(data.user))
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error) throw new Error(error.message)
   }
 
   const register = async (username: string, email: string, password: string) => {
-    const data = await authApi.register({ username, email, password })
-    setToken(data.token)
-    setUser(data.user)
-    localStorage.setItem('cubiq_user', JSON.stringify(data.user))
+    const { data: existing } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('username', username)
+      .maybeSingle()
+
+    if (existing) throw new Error('Username is already taken.')
+
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { username } },
+    })
+    if (error) throw new Error(error.message)
+
+    // Create Pterodactyl user account (non-blocking)
+    if (data.user) {
+      fetch('/api/auth/create-pterodactyl-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: data.user.id, email, username }),
+      }).catch(console.warn)
+    }
   }
 
-  const logout = () => {
-    clearToken()
+  const logout = async () => {
+    await supabase.auth.signOut()
     setUser(null)
+    setSession(null)
     window.location.href = '/login'
   }
 
   return (
     <AuthContext.Provider value={{
-      user,
-      loading,
-      login,
-      register,
-      logout,
+      user, session, loading, login, register, logout,
       isAdmin: user?.role === 'admin',
+      refreshProfile,
     }}>
       {children}
     </AuthContext.Provider>
