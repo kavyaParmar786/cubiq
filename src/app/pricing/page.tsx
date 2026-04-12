@@ -1,3 +1,6 @@
+// Force dynamic rendering — this page fetches plans from Supabase
+export const dynamic = 'force-dynamic'
+
 import type { Metadata } from 'next'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'

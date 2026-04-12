@@ -1,180 +1,127 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { Check, Zap, Star, Bot, Server } from 'lucide-react'
+import { createClient, type Plan } from '@/lib/supabase'
 
-const mcPlans = [
-  {
-    name: 'DIRT',
-    emoji: '🪨',
-    price: 99,
-    ram: '1GB',
-    cpu: '1 vCore',
-    storage: '10GB SSD',
-    bandwidth: '1TB',
-    players: '1–5',
-    backups: '1 Daily',
-    popular: false,
-    color: 'border-mc-card-border',
-    accentColor: 'text-mc-stone',
-    features: [
-      'Vanilla / Paper / Spigot',
-      'Basic DDoS Protection',
-      '1 Daily Backup',
-      'Standard Support (48h)',
-      'Shared IP + Port',
-      'Subdomain (*.cubiqhost.com)',
-    ],
-    missing: ['Custom Domain', 'Modpacks', 'Plugin Installer', 'Priority Support'],
-  },
-  {
-    name: 'IRON',
-    emoji: '⚙️',
-    price: 179,
-    ram: '2GB',
-    cpu: '1 vCore',
-    storage: '20GB NVMe',
-    bandwidth: '2TB',
-    players: '5–15',
-    backups: '3 Daily',
-    popular: false,
-    color: 'border-mc-stone/40',
-    accentColor: 'text-mc-stone',
-    features: [
-      'Vanilla / Paper / Spigot / Forge',
-      'Enhanced DDoS Protection',
-      '3 Daily Backups',
-      'Standard Support (24h)',
-      'Shared IP + Port',
-      'Plugin Installer',
-      'Subdomain',
-    ],
-    missing: ['Custom Domain', 'Priority Support'],
-  },
-  {
-    name: 'DIAMOND',
-    emoji: '💎',
-    price: 349,
-    ram: '4GB',
-    cpu: '2 vCores',
-    storage: '40GB NVMe',
-    bandwidth: '5TB',
-    players: '15–30',
-    backups: 'Hourly',
-    popular: true,
-    color: 'border-mc-diamond',
-    accentColor: 'text-mc-diamond',
-    features: [
-      'All Server Types',
-      'Advanced DDoS Protection',
-      'Hourly Backups',
-      'Priority Support (2h)',
-      'Dedicated Port',
-      'Plugin + Modpack Installer',
-      'Custom Domain (Free SSL)',
-      'MySQL Database',
-    ],
-    missing: [],
-  },
-  {
-    name: 'EMERALD',
-    emoji: '🌿',
-    price: 599,
-    ram: '8GB',
-    cpu: '3 vCores',
-    storage: '60GB NVMe',
-    bandwidth: '10TB',
-    players: '30–60',
-    backups: 'Hourly',
-    popular: false,
-    color: 'border-mc-emerald/40',
-    accentColor: 'text-mc-emerald',
-    features: [
-      'All Server Types',
-      'Advanced DDoS Protection',
-      'Hourly Backups',
-      'Priority Support (1h)',
-      'Dedicated IP',
-      'All Modpacks',
-      'Custom Domain + SSL',
-      '2x MySQL Databases',
-      'BungeeCord Ready',
-    ],
-    missing: [],
-  },
-  {
-    name: 'NETHERITE',
-    emoji: '⚔️',
-    price: 999,
-    ram: '16GB',
-    cpu: '4 vCores',
-    storage: '100GB NVMe',
-    bandwidth: 'Unlimited',
-    players: 'Unlimited',
-    backups: 'Real-time',
-    popular: false,
-    color: 'border-mc-gold',
-    accentColor: 'text-mc-gold',
-    features: [
-      'All Server Types',
-      'Maximum DDoS Protection (1Tbps)',
-      'Real-time Backups',
-      'Priority Support (30min)',
-      'Dedicated IP',
-      'All Modpacks',
-      'Custom Domain + SSL',
-      '5x MySQL Databases',
-      'BungeeCord / Velocity Ready',
-      'Sub-user Access',
-      'Discord Bot Included',
-    ],
-    missing: [],
-  },
-]
+const PLAN_ICONS: Record<string, string> = {
+  dirt: '🪨', iron: '⚙️', diamond: '💎',
+  emerald: '🌿', netherite: '⚔️',
+  'bot-starter': '🤖', 'bot-pro': '⚡', 'bot-ultra': '🚀',
+}
 
-const botPlans = [
-  {
-    name: 'BOT STARTER',
-    emoji: '🤖',
-    price: 79,
-    ram: '512MB',
-    cpu: '0.5 vCore',
-    storage: '5GB SSD',
-    runtimes: 'Node.js, Python',
-    bots: '1 Bot',
-    popular: false,
-    color: 'border-mc-card-border',
-  },
-  {
-    name: 'BOT PRO',
-    emoji: '⚡',
-    price: 149,
-    ram: '1GB',
-    cpu: '1 vCore',
-    storage: '15GB SSD',
-    runtimes: 'Node.js, Python, Go',
-    bots: '3 Bots',
-    popular: true,
-    color: 'border-mc-diamond',
-  },
-  {
-    name: 'BOT ULTRA',
-    emoji: '🚀',
-    price: 299,
-    ram: '2GB',
-    cpu: '2 vCores',
-    storage: '30GB NVMe',
-    runtimes: 'All runtimes',
-    bots: 'Unlimited',
-    popular: false,
-    color: 'border-mc-gold',
-  },
-]
+const PLAN_ACCENTS: Record<string, string> = {
+  dirt: 'text-mc-stone border-gray-700',
+  iron: 'text-gray-300 border-gray-600',
+  diamond: 'text-mc-diamond border-teal-800',
+  emerald: 'text-mc-emerald border-green-800',
+  netherite: 'text-mc-gold border-yellow-800',
+  'bot-starter': 'text-mc-stone border-gray-700',
+  'bot-pro': 'text-mc-diamond border-teal-800',
+  'bot-ultra': 'text-mc-gold border-yellow-800',
+}
+
+const BORDER_COLORS: Record<string, string> = {
+  dirt: 'border-mc-card-border',
+  iron: 'border-gray-600/30',
+  diamond: 'border-mc-diamond',
+  emerald: 'border-mc-emerald/40',
+  netherite: 'border-mc-gold',
+  'bot-starter': 'border-mc-card-border',
+  'bot-pro': 'border-mc-diamond',
+  'bot-ultra': 'border-mc-gold',
+}
+
+function PlanCard({ plan, delay }: { plan: Plan; delay: number }) {
+  const icon = PLAN_ICONS[plan.name] || '📦'
+  const accent = PLAN_ACCENTS[plan.name] || 'text-mc-stone border-gray-700'
+  const border = BORDER_COLORS[plan.name] || 'border-mc-card-border'
+  const ramGB = Math.round(plan.ram / 1024)
+  const cpuCores = plan.cpu / 100
+  const diskGB = Math.round(plan.disk / 1024)
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 30 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay }}
+      className={`mc-card p-6 relative border-2 ${border} flex flex-col ${plan.is_featured ? 'ring-1 ring-mc-diamond/30' : ''}`}
+    >
+      {plan.is_featured && (
+        <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-mc-diamond text-mc-obsidian px-3 py-0.5 text-xs font-mono font-bold flex items-center gap-1 whitespace-nowrap">
+          <Star size={9} fill="currentColor" /> POPULAR
+        </div>
+      )}
+
+      <div className="text-3xl mb-3">{icon}</div>
+      <h3 className={`font-minecraft text-xs mb-4 ${accent.split(' ')[0]}`} style={{ fontFamily: "'Press Start 2P', monospace" }}>
+        {plan.display_name}
+      </h3>
+      <div className="mb-4">
+        <span className="text-3xl font-bold text-white font-body">₹{plan.price}</span>
+        <span className="text-gray-500 text-xs font-mono">/mo</span>
+      </div>
+
+      {/* Specs grid */}
+      <div className="bg-mc-dark-bg border border-mc-card-border p-3 mb-5 text-xs font-mono grid grid-cols-2 gap-x-2 gap-y-1.5">
+        <div><span className="text-gray-600">RAM</span><span className={`block ${accent.split(' ')[0]}`}>{ramGB}GB</span></div>
+        <div><span className="text-gray-600">CPU</span><span className="block text-white">{cpuCores} vCore{cpuCores > 1 ? 's' : ''}</span></div>
+        <div><span className="text-gray-600">Disk</span><span className="block text-white">{diskGB}GB</span></div>
+        <div><span className="text-gray-600">BW</span><span className="block text-white">{plan.bandwidth}</span></div>
+        {plan.type === 'minecraft' && (
+          <>
+            <div><span className="text-gray-600">Players</span><span className="block text-mc-emerald">{plan.max_players >= 999 ? 'Unlimited' : plan.max_players}</span></div>
+            <div><span className="text-gray-600">Backups</span><span className="block text-white">{plan.backups}</span></div>
+          </>
+        )}
+      </div>
+
+      {/* Features */}
+      <ul className="space-y-1.5 mb-6 flex-1">
+        {(plan.features || []).map((f) => (
+          <li key={f} className="flex items-start gap-2 text-xs font-body text-gray-400">
+            <Check size={12} className="text-mc-emerald mt-0.5 flex-shrink-0" /> {f}
+          </li>
+        ))}
+      </ul>
+
+      <Link
+        href="/register"
+        className={`flex items-center justify-center gap-2 py-2.5 text-xs uppercase tracking-wider font-body transition-all ${
+          plan.is_featured
+            ? 'mc-btn-diamond'
+            : 'border border-mc-card-border text-gray-400 hover:border-mc-diamond hover:text-mc-diamond'
+        }`}
+      >
+        <Zap size={12} /> Get Started
+      </Link>
+    </motion.div>
+  )
+}
 
 export default function PricingContent() {
   const [tab, setTab] = useState<'minecraft' | 'bots'>('minecraft')
+  const [plans, setPlans] = useState<Plan[]>([])
+  const [loading, setLoading] = useState(true)
+  const supabase = createClient()
+
+  useEffect(() => {
+    supabase
+      .from('plans')
+      .select('*')
+      .eq('is_active', true)
+      .order('sort_order')
+      .then(({ data }) => {
+        setPlans(data || [])
+        setLoading(false)
+      })
+  }, [])
+
+  const mcPlans = plans.filter(p => p.type === 'minecraft')
+  const botPlans = plans.filter(p => p.type === 'bot')
+  const shown = tab === 'minecraft' ? mcPlans : botPlans
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-24">
@@ -191,7 +138,7 @@ export default function PricingContent() {
         </motion.div>
 
         {/* Tab Toggle */}
-        <div className="flex justify-center mt-8 mb-2">
+        <div className="flex justify-center mt-8">
           <div className="flex border border-mc-card-border">
             <button
               onClick={() => setTab('minecraft')}
@@ -203,7 +150,6 @@ export default function PricingContent() {
             </button>
             <button
               onClick={() => setTab('bots')}
-              id="bots"
               className={`flex items-center gap-2 px-6 py-3 text-sm font-body uppercase tracking-wider transition-all border-l border-mc-card-border ${
                 tab === 'bots' ? 'bg-mc-grass text-white' : 'text-gray-500 hover:text-white'
               }`}
@@ -214,139 +160,40 @@ export default function PricingContent() {
         </div>
       </div>
 
-      {/* Minecraft Plans */}
-      {tab === 'minecraft' && (
+      {/* Plans */}
+      {loading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+          {[1, 2, 3, 4, 5].map(i => (
+            <div key={i} className="mc-card border border-mc-card-border h-96 animate-pulse" />
+          ))}
+        </div>
+      ) : shown.length === 0 ? (
+        <div className="text-center py-16 text-gray-500 font-mono">
+          No plans configured yet.{' '}
+          <Link href="/admin/plans" className="text-mc-diamond hover:underline">Add plans in admin →</Link>
+        </div>
+      ) : (
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          key={tab}
+          initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4"
+          className={`grid grid-cols-1 gap-4 ${
+            shown.length <= 3
+              ? 'sm:grid-cols-3 max-w-4xl mx-auto'
+              : shown.length === 4
+              ? 'sm:grid-cols-2 lg:grid-cols-4'
+              : 'sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5'
+          }`}
         >
-          {mcPlans.map((plan, i) => (
-            <motion.div
-              key={plan.name}
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.07 }}
-              className={`mc-card p-6 relative border-2 ${plan.color} flex flex-col`}
-            >
-              {plan.popular && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-mc-diamond text-mc-obsidian px-3 py-0.5 text-xs font-mono font-bold flex items-center gap-1 whitespace-nowrap">
-                  <Star size={9} fill="currentColor" /> POPULAR
-                </div>
-              )}
-              <div className="text-3xl mb-3">{plan.emoji}</div>
-              <h3 className={`font-minecraft text-xs mb-1 ${plan.accentColor}`} style={{ fontFamily: "'Press Start 2P', monospace" }}>
-                {plan.name}
-              </h3>
-              <div className="mb-4 mt-2">
-                <span className="text-3xl font-bold text-white font-body">₹{plan.price}</span>
-                <span className="text-gray-500 text-xs font-mono">/mo</span>
-              </div>
-
-              {/* Specs */}
-              <div className="bg-mc-dark-bg border border-mc-card-border p-3 mb-5 text-xs font-mono grid grid-cols-2 gap-x-2 gap-y-1">
-                {[
-                  ['RAM', plan.ram],
-                  ['CPU', plan.cpu],
-                  ['Disk', plan.storage],
-                  ['BW', plan.bandwidth],
-                  ['Players', plan.players],
-                  ['Backups', plan.backups],
-                ].map(([k, v]) => (
-                  <div key={k}>
-                    <span className="text-gray-600">{k}</span>
-                    <span className={`block ${plan.accentColor}`}>{v}</span>
-                  </div>
-                ))}
-              </div>
-
-              {/* Features */}
-              <ul className="space-y-1.5 mb-6 flex-1">
-                {plan.features.map((f) => (
-                  <li key={f} className="flex items-start gap-2 text-xs font-body text-gray-400">
-                    <Check size={12} className="text-mc-emerald mt-0.5 flex-shrink-0" /> {f}
-                  </li>
-                ))}
-              </ul>
-
-              <Link
-                href="/register"
-                className={`mt-auto flex items-center justify-center gap-2 py-2.5 text-xs uppercase tracking-wider font-body transition-all ${
-                  plan.popular
-                    ? 'mc-btn-diamond'
-                    : 'border border-mc-card-border text-gray-400 hover:border-mc-diamond hover:text-mc-diamond'
-                }`}
-              >
-                <Zap size={12} /> Get Started
-              </Link>
-            </motion.div>
+          {shown.map((plan, i) => (
+            <PlanCard key={plan.id} plan={plan} delay={i * 0.07} />
           ))}
         </motion.div>
       )}
 
-      {/* Bot Plans */}
-      {tab === 'bots' && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto"
-        >
-          {botPlans.map((plan, i) => (
-            <motion.div
-              key={plan.name}
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.1 }}
-              className={`mc-card p-8 relative border-2 ${plan.color} flex flex-col ${plan.popular ? 'scale-105' : ''}`}
-            >
-              {plan.popular && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-mc-diamond text-mc-obsidian px-3 py-0.5 text-xs font-mono font-bold flex items-center gap-1">
-                  <Star size={9} fill="currentColor" /> POPULAR
-                </div>
-              )}
-              <div className="text-4xl mb-4">{plan.emoji}</div>
-              <h3 className="text-white font-minecraft text-xs mb-4" style={{ fontFamily: "'Press Start 2P', monospace" }}>
-                {plan.name}
-              </h3>
-              <div className="mb-6">
-                <span className="text-4xl font-bold text-white font-body">₹{plan.price}</span>
-                <span className="text-gray-500 text-sm font-mono">/mo</span>
-              </div>
-
-              <div className="bg-mc-dark-bg border border-mc-card-border p-4 mb-6 text-xs font-mono space-y-2">
-                {[
-                  ['RAM', plan.ram],
-                  ['CPU', plan.cpu],
-                  ['Storage', plan.storage],
-                  ['Runtimes', plan.runtimes],
-                  ['Bots', plan.bots],
-                ].map(([k, v]) => (
-                  <div key={k} className="flex justify-between">
-                    <span className="text-gray-600">{k}</span>
-                    <span className="text-mc-diamond">{v}</span>
-                  </div>
-                ))}
-              </div>
-
-              <Link
-                href="/register"
-                className={`flex items-center justify-center gap-2 py-3 text-sm uppercase tracking-wider font-body transition-all ${
-                  plan.popular
-                    ? 'mc-btn-diamond'
-                    : 'border border-mc-card-border text-gray-400 hover:border-mc-diamond hover:text-mc-diamond'
-                }`}
-              >
-                <Zap size={14} /> Deploy Bot
-              </Link>
-            </motion.div>
-          ))}
-        </motion.div>
-      )}
-
-      {/* FAQ note */}
-      <div className="text-center mt-16 text-gray-500 text-sm font-body">
-        All prices in INR. GST applicable at checkout. |{' '}
-        <Link href="/#faq" className="text-mc-diamond hover:underline">Read our FAQ</Link>
+      <div className="text-center mt-10 text-gray-500 text-sm font-body">
+        All prices in INR · GST applicable at checkout ·{' '}
+        <Link href="/#faq" className="text-mc-diamond hover:underline">FAQ</Link>
       </div>
     </div>
   )

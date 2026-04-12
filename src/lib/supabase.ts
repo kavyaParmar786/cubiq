@@ -155,16 +155,39 @@ export interface Bot {
   created_at: string
 }
 
-// ── createClient — use in client components & anywhere ────────
-// Lazy singleton so it's not instantiated at module load time
-let _client: ReturnType<typeof createBrowserClient> | null = null
+// ── createClient — safe for client components ─────────────────
+// Guards against missing env vars during static prerendering.
+function createStubClient(): any {
+  const chain = (): any => new Proxy({}, {
+    get: (_t, prop) => {
+      if (prop === 'then') return undefined // not a Promise
+      return (..._args: any[]) => chain()
+    }
+  })
+  return {
+    from: () => ({
+      select: chain, insert: chain, update: chain, delete: chain, upsert: chain,
+      eq: chain, neq: chain, in: chain, gte: chain, order: chain, limit: chain,
+      single: () => Promise.resolve({ data: null, error: null }),
+      maybeSingle: () => Promise.resolve({ data: null, error: null }),
+      then: (fn: any) => Promise.resolve({ data: [], error: null }).then(fn),
+    }),
+    auth: {
+      getSession: async () => ({ data: { session: null } }),
+      getUser: async () => ({ data: { user: null } }),
+      onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+      signInWithPassword: async () => ({ data: null, error: { message: 'Supabase not configured' } }),
+      signUp: async () => ({ data: null, error: { message: 'Supabase not configured' } }),
+      signOut: async () => {},
+    },
+    channel: () => ({ on: () => ({ subscribe: () => ({}) }) }),
+    removeChannel: () => {},
+  }
+}
 
 export function createClient() {
-  if (!_client) {
-    _client = createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    )
-  }
-  return _client
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  if (!url || !key) return createStubClient()
+  return createBrowserClient(url, key)
 }

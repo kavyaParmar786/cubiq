@@ -1,5 +1,5 @@
-// This is the root page - it renders the home content directly
-// with Navbar and Footer included
+// Force dynamic — child components fetch from Supabase (plans, server count)
+export const dynamic = 'force-dynamic'
 
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
