@@ -1,10 +1,14 @@
-import { createBrowserClient } from '@supabase/ssr'
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
+// ── Browser-safe Supabase client ─────────────────────────────
+// This file is safe to import in client components AND server components.
+// It does NOT import next/headers — that lives in supabase-server.ts only.
 
-// Types matching our schema
+import { createBrowserClient } from '@supabase/ssr'
+
+// ── TypeScript types matching schema ─────────────────────────
 export type UserRole = 'user' | 'admin'
-export type ServerStatus = 'installing' | 'online' | 'offline' | 'starting' | 'stopping' | 'suspended' | 'deleted'
+export type ServerStatus =
+  | 'installing' | 'online' | 'offline'
+  | 'starting' | 'stopping' | 'suspended' | 'deleted'
 export type TicketStatus = 'open' | 'in-progress' | 'waiting' | 'closed'
 export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded'
 
@@ -17,6 +21,7 @@ export interface Profile {
   pterodactyl_id: number | null
   balance: number
   created_at: string
+  updated_at: string
 }
 
 export interface Plan {
@@ -43,8 +48,8 @@ export interface Server {
   user_id: string
   pterodactyl_server_id: string | null
   pterodactyl_uuid: string | null
-  plan_id: string
-  node_id: string
+  plan_id: string | null
+  node_id: string | null
   name: string
   type: string
   version: string
@@ -56,9 +61,13 @@ export interface Server {
   cpu: number
   disk: number
   modpack: string | null
+  suspend_reason: string | null
+  next_billing_date: string | null
   created_at: string
-  plan?: Plan
-  node?: Node
+  updated_at: string
+  // Joined relations (optional)
+  plans?: Plan
+  nodes?: Node
 }
 
 export interface Node {
@@ -72,7 +81,15 @@ export interface Node {
   status: string
   ip: string
   fqdn: string | null
+  total_ram: number
+  used_ram: number
+  total_disk: number
+  used_disk: number
+  total_cpu: number
+  used_cpu: number
+  latency: number
   is_default: boolean
+  created_at: string
 }
 
 export interface Ticket {
@@ -83,8 +100,11 @@ export interface Ticket {
   priority: string
   status: TicketStatus
   category: string
+  assigned_to: string | null
+  closed_at: string | null
   created_at: string
   updated_at: string
+  // Joined
   profiles?: Profile
 }
 
@@ -92,9 +112,10 @@ export interface TicketMessage {
   id: string
   ticket_id: string
   sender_id: string
-  sender_role: string
+  sender_role: 'user' | 'admin'
   content: string
   created_at: string
+  // Joined
   profiles?: Profile
 }
 
@@ -103,21 +124,30 @@ export interface Payment {
   user_id: string
   server_id: string | null
   plan_id: string | null
+  razorpay_order_id: string | null
+  razorpay_payment_id: string | null
   amount: number
+  currency: string
   status: PaymentStatus
   description: string | null
   invoice_id: string | null
+  period_start: string | null
+  period_end: string | null
   created_at: string
+  // Joined
   plans?: Plan
+  profiles?: Profile
 }
 
 export interface Bot {
   id: string
   user_id: string
+  pterodactyl_server_id: string | null
   name: string
   runtime: string
   start_command: string
   status: string
+  plan_id: string | null
   ram: number
   cpu: number
   disk: number
@@ -125,42 +155,16 @@ export interface Bot {
   created_at: string
 }
 
-// ── Browser client (use in client components) ─────────────────
+// ── createClient — use in client components & anywhere ────────
+// Lazy singleton so it's not instantiated at module load time
+let _client: ReturnType<typeof createBrowserClient> | null = null
+
 export function createClient() {
-  return createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
-}
-
-// ── Server client (use in server components / API routes) ─────
-export function createServerSupabaseClient() {
-  const cookieStore = cookies()
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value
-        },
-        set(name: string, value: string, options: any) {
-          cookieStore.set({ name, value, ...options })
-        },
-        remove(name: string, options: any) {
-          cookieStore.set({ name, value: '', ...options })
-        },
-      },
-    }
-  )
-}
-
-// ── Admin client (bypasses RLS — server only!) ────────────────
-export function createAdminClient() {
-  const { createClient: createSupabaseClient } = require('@supabase/supabase-js')
-  return createSupabaseClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  )
+  if (!_client) {
+    _client = createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
+  }
+  return _client
 }

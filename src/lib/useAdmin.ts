@@ -1,14 +1,13 @@
 'use client'
 
+// Admin guard — client components only
+// createAdminClient lives in supabase-server.ts (never imported here)
+
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
-import { createAdminClient } from '@/lib/supabase'
 
-// Re-export admin client for use in admin pages
-export { createAdminClient }
-
-// Hook that redirects non-admins away
+// Hook: redirects non-admin users away from admin pages
 export function useAdminGuard() {
   const { user, loading } = useAuth()
   const router = useRouter()
@@ -17,7 +16,11 @@ export function useAdminGuard() {
     if (!loading && (!user || user.role !== 'admin')) {
       router.replace('/dashboard')
     }
-  }, [user, loading])
+  }, [user, loading, router])
 
-  return { user, loading, isAdmin: user?.role === 'admin' }
+  return {
+    user,
+    loading,
+    isAdmin: user?.role === 'admin',
+  }
 }

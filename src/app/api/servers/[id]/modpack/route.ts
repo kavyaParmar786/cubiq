@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerSupabaseClient, createAdminClient } from '@/lib/supabase'
+import { createServerSupabaseClient, createAdminClient } from '@/lib/supabase-server'
 import { pteroInstallModpack } from '@/lib/pterodactyl'
 
 export async function POST(

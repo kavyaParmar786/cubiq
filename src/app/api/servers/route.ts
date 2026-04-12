@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerSupabaseClient, createAdminClient } from '@/lib/supabase'
+import { createServerSupabaseClient, createAdminClient } from '@/lib/supabase-server'
 import { pteroCreateServer } from '@/lib/pterodactyl'
 import { sendServerDeployedEmail } from '@/lib/email'
 

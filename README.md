@@ -1,169 +1,262 @@
-# Cubiq Host v2 — Upgrade Guide
-## From mock data → Real Supabase + Pterodactyl
+# ⚡ Cubiq Host — Minecraft & Bot Hosting Platform
 
----
+A full-stack SaaS hosting platform inspired by Shockbyte/Hostinger, built with a Minecraft-themed dark UI.
 
-## STEP 1 — Install new packages
+## 🗂️ Project Structure
+
+```
+cubiq-host/
+├── src/                          # Next.js Frontend
+│   ├── app/
+│   │   ├── page.tsx              # Home page
+│   │   ├── layout.tsx            # Root layout
+│   │   ├── pricing/page.tsx      # Pricing page
+│   │   ├── features/page.tsx     # Features page
+│   │   ├── status/page.tsx       # System status
+│   │   ├── login/page.tsx        # Login
+│   │   ├── register/page.tsx     # Register
+│   │   ├── dashboard/            # Client dashboard
+│   │   │   ├── page.tsx          # Dashboard overview
+│   │   │   ├── servers/          # Server management
+│   │   │   │   ├── page.tsx      # Server list
+│   │   │   │   ├── create/       # Create wizard
+│   │   │   │   └── [id]/         # Server detail + console
+│   │   │   ├── bots/page.tsx     # Bot hosting
+│   │   │   ├── billing/page.tsx  # Billing & invoices
+│   │   │   ├── tickets/page.tsx  # Support tickets
+│   │   │   ├── files/page.tsx    # File manager
+│   │   │   └── settings/page.tsx # Account settings
+│   │   └── admin/                # Admin panel
+│   │       ├── page.tsx          # Admin dashboard
+│   │       ├── users/page.tsx    # User management
+│   │       ├── servers/page.tsx  # Server control
+│   │       ├── plans/page.tsx    # Plan management
+│   │       ├── billing/page.tsx  # Payment control
+│   │       ├── tickets/page.tsx  # Ticket management
+│   │       ├── nodes/page.tsx    # Node management
+│   │       └── settings/page.tsx # Settings
+│   ├── components/
+│   │   ├── layout/               # Shared layout components
+│   │   │   ├── Navbar.tsx
+│   │   │   ├── Footer.tsx
+│   │   │   ├── DashboardSidebar.tsx
+│   │   │   ├── DashboardHeader.tsx
+│   │   │   └── AdminSidebar.tsx
+│   │   └── minecraft/            # Theme components
+│   │       ├── HeroSection.tsx
+│   │       ├── FeaturesSection.tsx
+│   │       ├── PricingPreview.tsx
+│   │       ├── PricingContent.tsx
+│   │       ├── TestimonialsSection.tsx
+│   │       ├── FAQSection.tsx
+│   │       └── CTASection.tsx
+│   ├── lib/
+│   │   ├── api.ts                # API client (all endpoints)
+│   │   └── auth-context.tsx      # Auth context provider
+│   └── styles/
+│       └── globals.css           # Minecraft theme CSS
+│
+├── backend/                      # Express Backend
+│   ├── server.js                 # Entry point
+│   ├── routes/
+│   │   ├── auth.js               # Register, login, reset
+│   │   ├── servers.js            # Server CRUD + power
+│   │   ├── tickets.js            # Support tickets
+│   │   ├── billing.js            # Razorpay payments
+│   │   ├── admin.js              # Admin endpoints
+│   │   ├── nodes.js              # Node listing
+│   │   └── bots.js               # Bot hosting
+│   ├── models/
+│   │   ├── User.js               # User model
+│   │   ├── Server.js             # Server model
+│   │   └── models.js             # Plan, Ticket, Payment, Node
+│   ├── middleware/
+│   │   └── auth.js               # JWT auth + admin check
+│   └── utils/
+│       ├── pterodactyl.js        # Pterodactyl API wrapper
+│       ├── email.js              # Nodemailer templates
+│       ├── socketHandler.js      # Socket.io live stats
+│       └── seed.js               # Database seeder
+│
+├── .env.example                  # Environment variables template
+├── package.json                  # Frontend deps
+├── tailwind.config.js            # Minecraft theme config
+├── next.config.js
+└── tsconfig.json
+```
+
+## 🚀 Quick Start
+
+### 1. Clone & Install
 
 ```bash
-npm install @supabase/supabase-js @supabase/ssr resend
+# Install frontend dependencies
+npm install
+
+# Install backend dependencies
+cd backend && npm install
 ```
 
-Remove old unused packages:
-```bash
-npm uninstall axios js-cookie react-hot-toast socket.io-client
-```
-
----
-
-## STEP 2 — Set up Supabase
-
-1. Go to [supabase.com](https://supabase.com) → New Project
-2. Open **SQL Editor** → paste the entire contents of `supabase/schema.sql` → Run
-3. This creates all tables, RLS policies, triggers, and seeds 8 default plans
-
-Get your keys from **Project Settings → API**:
-```env
-NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
-SUPABASE_SERVICE_ROLE_KEY=eyJ...
-```
-
----
-
-## STEP 3 — Set up Pterodactyl
-
-You need a Pterodactyl panel. If you don't have one:
-- Use [pterodactyl.io](https://pterodactyl.io/panel/1.0/getting_started.html) self-hosted
-- Or a hosted panel like [WISP](https://wisp.gg)
-
-### Get API keys:
-- **Application API Key**: Admin Panel → API → Create Key (needs all permissions)
-- **Client API Key**: Account → API Credentials → Create Key
-
-### Get Egg IDs:
-Admin Panel → Nests → click each egg → note the ID in the URL
-
-```env
-PTERODACTYL_URL=https://panel.yourdomain.com
-PTERODACTYL_API_KEY=ptla_xxx
-PTERODACTYL_CLIENT_KEY=ptlc_xxx
-PTERODACTYL_PAPER_EGG_ID=1
-PTERODACTYL_VANILLA_EGG_ID=2
-PTERODACTYL_FORGE_EGG_ID=3
-PTERODACTYL_FABRIC_EGG_ID=4
-```
-
-### Create your first node in Cubiq Admin:
-1. Login as admin → `/admin/nodes` → Add Node
-2. Fill in Pterodactyl Node ID (from Admin → Nodes in your panel)
-3. Check "Set as Default" — new servers auto-assign to this node
-
----
-
-## STEP 4 — Set up Email (Resend)
-
-1. Go to [resend.com](https://resend.com) → Create account
-2. Add & verify your domain
-3. Create API key
-
-```env
-RESEND_API_KEY=re_xxx
-EMAIL_FROM=Cubiq Host <noreply@yourdomain.com>
-```
-
----
-
-## STEP 5 — Set up Razorpay (optional)
-
-1. Go to [razorpay.com](https://razorpay.com) → create account
-2. Get test keys from Dashboard → Settings → API Keys
-
-```env
-NEXT_PUBLIC_RAZORPAY_KEY_ID=rzp_test_xxx
-RAZORPAY_KEY_ID=rzp_test_xxx
-RAZORPAY_KEY_SECRET=xxx
-```
-
-> Without Razorpay keys set, billing pages show but payments use dev mock mode.
-
----
-
-## STEP 6 — Create admin account
-
-1. Go to `/register` → create your account
-2. In Supabase Dashboard → Table Editor → `profiles` table
-3. Find your row → change `role` from `user` to `admin`
-4. Now `/admin` is accessible
-
----
-
-## STEP 7 — Create your .env.local
+### 2. Environment Setup
 
 ```bash
-cp .env.example .env.local
-# Fill in all values
+cp .env.example .env.local        # Frontend
+cp .env.example backend/.env      # Backend
 ```
 
----
+Fill in your values in both `.env` files.
 
-## STEP 8 — Run locally
+### 3. Database Setup
+
+Start MongoDB, then seed the database:
 
 ```bash
-npm run dev
+cd backend
+node utils/seed.js
 ```
 
-Visit:
-- `http://localhost:3000` → Public site
-- `http://localhost:3000/dashboard` → Client panel  
-- `http://localhost:3000/admin` → Admin panel
+This creates:
+- Admin user (`admin@cubiqhost.com` / `Admin@123456`)
+- All 8 hosting plans
+- 5 server nodes
 
----
-
-## STEP 9 — Deploy to Vercel
+### 4. Run Development Servers
 
 ```bash
-# Push to GitHub first, then:
-vercel --prod
+# Terminal 1: Frontend (Next.js)
+npm run dev          # http://localhost:3000
+
+# Terminal 2: Backend (Express)
+cd backend
+npm run dev          # http://localhost:5000
 ```
 
-Set all env vars in Vercel Dashboard → Project → Settings → Environment Variables.
+## 🌐 Routes
+
+| Path | Description |
+|------|-------------|
+| `/` | Home page |
+| `/pricing` | Pricing plans |
+| `/features` | Features page |
+| `/status` | System status |
+| `/login` | Login |
+| `/register` | Register |
+| `/dashboard` | Client dashboard |
+| `/dashboard/servers` | My servers |
+| `/dashboard/servers/create` | Create server wizard |
+| `/dashboard/servers/[id]` | Server console & management |
+| `/dashboard/bots` | Bot hosting |
+| `/dashboard/billing` | Billing & invoices |
+| `/dashboard/tickets` | Support tickets |
+| `/dashboard/files` | File manager |
+| `/dashboard/settings` | Account settings |
+| `/admin` | Admin overview |
+| `/admin/users` | User management |
+| `/admin/servers` | Server control |
+| `/admin/plans` | Plan management |
+| `/admin/billing` | Payment control |
+| `/admin/tickets` | Ticket management |
+| `/admin/nodes` | Node management |
+| `/admin/settings` | Admin settings |
+
+## 🔌 API Endpoints
+
+```
+POST   /api/auth/register
+POST   /api/auth/login
+GET    /api/auth/me
+POST   /api/auth/forgot-password
+POST   /api/auth/reset-password
+
+GET    /api/servers
+POST   /api/servers
+GET    /api/servers/:id
+POST   /api/servers/:id/power
+DELETE /api/servers/:id
+
+GET    /api/tickets
+POST   /api/tickets
+POST   /api/tickets/:id/reply
+PUT    /api/tickets/:id/close
+
+GET    /api/billing/plans
+GET    /api/billing/invoices
+POST   /api/billing/order
+POST   /api/billing/verify
+
+GET    /api/bots
+POST   /api/bots
+POST   /api/bots/:id/power
+DELETE /api/bots/:id
+
+GET    /api/admin/stats           (admin only)
+GET    /api/admin/users           (admin only)
+GET    /api/admin/servers         (admin only)
+GET    /api/admin/plans           (admin only)
+GET    /api/admin/tickets         (admin only)
+GET    /api/admin/payments        (admin only)
+GET    /api/admin/nodes           (admin only)
+```
+
+## ☁️ Deploy on Vercel
+
+### Frontend (Vercel)
+
+1. Push to GitHub
+2. Import in Vercel
+3. Set env vars (all `NEXT_PUBLIC_*` values)
+4. Deploy!
+
+### Backend (Railway / Render / VPS)
+
+1. Deploy backend folder to Railway or Render
+2. Set all env vars (MongoDB URI, JWT secret, Pterodactyl keys, etc.)
+3. Update `NEXT_PUBLIC_API_URL` in Vercel to point to backend URL
+
+## 🎮 Pterodactyl Setup
+
+1. Install [Pterodactyl Panel](https://pterodactyl.io/)
+2. Create an Application API Key in Admin → API
+3. Set `PTERODACTYL_URL` and `PTERODACTYL_API_KEY` in backend `.env`
+4. Make sure nodes are configured in your panel
+5. Update node `pterodactylNodeId` values in `seed.js` to match your panel
+
+## 💳 Razorpay Setup
+
+1. Create account at [razorpay.com](https://razorpay.com)
+2. Get test API keys from Dashboard → Settings → API Keys
+3. Set `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` in backend `.env`
+4. Set `NEXT_PUBLIC_RAZORPAY_KEY_ID` in frontend `.env.local`
+
+## 🎨 Theme Customization
+
+All Minecraft theme tokens are in `tailwind.config.js` under `theme.extend.colors.mc`.
+
+CSS custom properties are in `src/styles/globals.css`.
+
+Key design elements:
+- **Font**: Press Start 2P (headings), Rajdhani (body), Share Tech Mono (code)
+- **Primary**: `#4EEBD0` (Diamond blue-green)
+- **Accent**: `#5D9E2F` (Grass green)
+- **Background**: `#0D0D14` (Dark obsidian)
+- **Cards**: `#141420` with `#2A2A3E` borders
+
+## 📦 Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Frontend | Next.js 14 (App Router) + TypeScript |
+| Styling | Tailwind CSS + Custom Minecraft theme |
+| Animation | Framer Motion |
+| Charts | Recharts |
+| Backend | Node.js + Express |
+| Database | MongoDB + Mongoose |
+| Auth | JWT (jsonwebtoken + bcryptjs) |
+| Realtime | Socket.io |
+| Email | Nodemailer |
+| Payments | Razorpay |
+| Panel | Pterodactyl API |
 
 ---
 
-## What's New in v2
-
-### Architecture Changes
-| Old | New |
-|-----|-----|
-| Separate Express backend | Next.js API Routes (no separate server) |
-| MongoDB + Mongoose | Supabase (PostgreSQL) |
-| JWT in localStorage | Supabase Auth (secure cookies) |
-| Mock/hardcoded data | Real database data |
-| No auth guards | Middleware + RLS protects all routes |
-
-### New Features
-| Feature | File |
-|---------|------|
-| Supabase Auth (login/register) | `src/lib/auth-context.tsx` |
-| Auth middleware (route protection) | `src/middleware.ts` |
-| All TypeScript types | `src/lib/supabase.ts` |
-| Pterodactyl API wrapper | `src/lib/pterodactyl.ts` |
-| Email via Resend | `src/lib/email.ts` |
-| Admin guard hook | `src/lib/useAdmin.ts` |
-| Live server stats API | `src/app/api/servers/[id]/stats` |
-| Real power controls | `src/app/api/servers/[id]/power` |
-| Console commands | `src/app/api/servers/[id]/command` |
-| Modpack install | `src/app/api/servers/[id]/modpack` |
-| Realtime ticket chat | Supabase Realtime subscriptions |
-| Admin email on ticket reply | `src/app/api/tickets/notify` |
-| Razorpay order + verify | `src/app/api/billing/*` |
-| Node management (hidden) | Admin nodes page + Supabase |
-| Auto Pterodactyl user on signup | `src/app/api/auth/create-pterodactyl-user` |
-
-### Database Schema
-Run `supabase/schema.sql` once in Supabase SQL editor to get:
-- 8 tables with proper foreign keys
-- Row Level Security on every table
-- Auto triggers (ticket IDs, updated_at, profile creation)
-- Pre-seeded with 8 hosting plans
+Built with ❤️ for the Minecraft hosting community.
